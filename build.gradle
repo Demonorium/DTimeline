@@ -1,19 +1,109 @@
 plugins {
     id 'java'
+    id 'signing'
+    id 'maven-publish'
 }
 
 group 'ru.demonorium'
-version '1.0-SNAPSHOT'
+version "1.2"
+description 'Advance effective timeline system'
+
+JavaVersion javaVersion = JavaVersion.VERSION_13
+project.ext.set('author', 'Demonorium')
+project.ext.set('authorUrl', 'https://github.com/' + project.author)
+project.ext.set('projectRepository', project.authorUrl + '/' + rootProject.name)
+project.ext.set('projectScm', project.projectRepository + '.git')
+project.ext.set('mail', 'demonorium@yandex.ru')
 
 repositories {
     mavenCentral()
+    mavenLocal()
 }
 
 dependencies {
+    implementation('ru.demonorium:DConcepts:'+version)
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.0'
 }
 
 test {
     useJUnitPlatform()
+}
+
+java {
+    withJavadocJar()
+    withSourcesJar()
+    sourceCompatibility = javaVersion
+    targetCompatibility = javaVersion
+}
+
+/**
+ * POM generation
+ */
+def customizePom(pom) {
+    pom.withXml {
+        def root = asNode()
+
+        root.dependencies.removeAll { dep ->
+            dep.scope == "test"
+        }
+
+        root.children().last() + {
+            description rootProject.description
+            name rootProject.name
+            url project.projectRepository
+            organization {
+                name group
+                url project.authorUrl
+            }
+            issueManagement {
+                system 'GitHub'
+                url project.projectRepository+'/issues'
+            }
+            licenses {
+                license {
+                    name 'Apache License 2.0'
+                    url 'https://www.apache.org/licenses/LICENSE-2.0'
+                }
+            }
+            scm {
+                url project.projectRepository
+                connection 'scm:' + project.projectScm
+                developerConnection 'scm:git://github.com/' + project.author + '/' + rootProject.name '.git'
+            }
+            developers {
+                developer {
+                    id project.author
+                    name project.author
+                    email project.mail
+                }
+            }
+        }
+    }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            customizePom(pom)
+            groupId group
+            artifactId archivesBaseName
+            version version
+
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            url "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
+            credentials {
+                username sonatypeUsername
+                password sonatypePassword
+            }
+        }
+    }
+}
+
+signing {
+    sign publishing.publications
 }
